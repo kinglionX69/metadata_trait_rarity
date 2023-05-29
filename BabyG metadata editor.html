@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NFT Metadata Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        #metadataInput {
+            width: 100%;
+            height: 300px;
+        }
+
+        #searchInput {
+            margin-right: 10px;
+        }
+
+        #nftForm input, select {
+            margin-bottom: 5px;
+        }
+
+        .button-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .button-container button {
+            margin-left: 10px;
+            padding: 5px 10px;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .button-container button.save {
+            background-color: blue;
+        }
+
+        .button-container button.download {
+            background-color: red;
+        }
+
+        .section-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 30px;
+        }
+
+        .section-divider {
+            border-top: 1px dotted #ccc;
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+</head>
+<body>
+    <div class="container">
+        <input type="file" id="jsonFileInput" accept=".json">
+        <div class="button-container">
+            <button onclick="loadDataFromFile()">Load Data</button>
+            <div>
+                <input id="imageFolderInput" type="text" placeholder="Local image folder location">
+                <button onclick="loadImageFolder()">Load Images</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-header">Search NFT</div>
+    <div class="container">
+        <input id="searchInput" type="text" placeholder="Search by NFT number">
+        <button onclick="searchNFT()">Search</button>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div class="section-header">NFT Details</div>
+    <div id="nftForm"></div>
+
+    <div class="section-header">Navigate NFTs</div>
+    <div class="container">
+        <div class="button-container">
+            <button onclick="prevNFT()">Previous</button>
+            <button onclick="nextNFT()">Next</button>
+        </div>
+    </div>
+
+    <div class="section-header">Bulk Edit Traits</div>
+    <div class="container">
+        <div>
+            <select id="traitDropdown" onchange="updateTraitValues()"></select>
+            <select id="traitValueDropdown"></select>
+            <input id="newValueInput" type="text" placeholder="New value">
+            <button onclick="bulkEdit()">Bulk Edit</button>
+        </div>
+        <div id="nftImage"></div>
+    </div>
+
+    <div class="button-container" style="justify-content: flex-end;">
+        <button class="save" onclick="saveData()">Save Changes</button>
+        <button class="download" onclick="downloadJSON()">Download JSON</button>
+    </div>
+
+    <script>
+        var metadataArray;
+        var currentIndex = 0;
+        var imageFolder;
+
+        function loadDataFromFile() {
+            var fileInput = document.getElementById('jsonFileInput');
+            var file = fileInput.files[0];
+
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var contents = e.target.result;
+                    var data = JSON.parse(contents);
+                    metadataArray = Array.isArray(data) ? data : data.collection;
+                    renderNFT();
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function renderNFT() {
+            var nftForm = document.getElementById('nftForm');
+            nftForm.innerHTML = '';
+
+            var nft = metadataArray[currentIndex];
+            Object.keys(nft).forEach(function(key) {
+                if (key !== 'attributes') {
+                    var input = document.createElement('input');
+                    input.id = key;
+                    input.value = nft[key];
+                    nftForm.appendChild(document.createTextNode(key + ': '));
+                    nftForm.appendChild(input);
+                    nftForm.appendChild(document.createElement('br'));
+                } else {
+                    nft[key].forEach(function(trait, index) {
+                        var traitInput = document.createElement('input');
+                        traitInput.id = 'trait' + index;
+                        traitInput.value = trait.value;
+                        nftForm.appendChild(document.createTextNode(trait.trait_type + ': '));
+                        nftForm.appendChild(traitInput);
+                        nftForm.appendChild(document.createElement('br'));
+                    });
+                }
+            });
+
+            // Update trait dropdown
+            var dropdown = document.getElementById('traitDropdown');
+            dropdown.innerHTML = '';
+            nft.attributes.forEach(function(trait, index) {
+                var option = document.createElement('option');
+                option.value = trait.trait_type;
+                option.text = trait.trait_type;
+                dropdown.add(option);
+            });
+
+            // Update trait values dropdown
+            updateTraitValues();
+
+            // Display image
+            displayNFTImage(nft.image);
+        }
+
+        function updateTraitValues() {
+            var traitType = document.getElementById('traitDropdown').value;
+            var dropdown = document.getElementById('traitValueDropdown');
+            dropdown.innerHTML = '';
+
+            var values = [];
+            metadataArray.forEach(function(nft) {
+                nft.attributes.forEach(function(trait) {
+                    if (trait.trait_type === traitType && !values.includes(trait.value)) {
+                        values.push(trait.value);
+                    }
+                });
+            });
+
+            values.forEach(function(value) {
+                var option = document.createElement('option');
+                option.value = value;
+                option.text = value;
+                dropdown.add(option);
+            });
+        }
+
+        function nextNFT() {
+            if (currentIndex < metadataArray.length - 1) {
+                currentIndex++;
+                renderNFT();
+            }
+        }
+
+        function prevNFT() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderNFT();
+            }
+        }
+
+        function saveData() {
+            var nft = metadataArray[currentIndex];
+            Object.keys(nft).forEach(function(key) {
+                if (key !== 'attributes') {
+                    nft[key] = document.getElementById(key).value;
+                } else {
+                    nft[key].forEach(function(trait, index) {
+                        trait.value = document.getElementById('trait' + index).value;
+                    });
+                }
+            });
+        }
+
+        function downloadJSON() {
+            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(metadataArray, null, 2));
+            var downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "nft_data.json");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function searchNFT() {
+            var searchNumber = document.getElementById('searchInput').value.trim();
+            for (var i = 0; i < metadataArray.length; i++) {
+                if (metadataArray[i].name.includes(searchNumber)) {
+                    currentIndex = i;
+                    renderNFT();
+                    break;
+                }
+            }
+        }
+
+        function bulkEdit() {
+            var traitType = document.getElementById('traitDropdown').value;
+            var oldValue = document.getElementById('traitValueDropdown').value;
+            var newValue = document.getElementById('newValueInput').value;
+            metadataArray.forEach(function(nft) {
+                nft.attributes.forEach(function(trait) {
+                    if (trait.trait_type === traitType && trait.value === oldValue) {
+                        trait.value = newValue;
+                    }
+                });
+            });
+            renderNFT();
+        }
+
+        function loadImageFolder() {
+            imageFolder = document.getElementById('imageFolderInput').value;
+            displayNFTImage(metadataArray[currentIndex].name);
+        }
+
+        function displayNFTImage(nftName) {
+            var nftImage = document.getElementById('nftImage');
+            nftImage.innerHTML = '';
+
+            var nftNumber = extractNFTNumber(nftName);
+            var imageUrl = imageFolder + '/' + nftNumber + '.png';
+
+            var img = document.createElement('img');
+            img.src = imageUrl;
+            img.style.width = '200px';
+            img.style.height = '200px';
+            nftImage.appendChild(img);
+        }
+
+        function extractNFTNumber(nftName) {
+            var matches = nftName.match(/#(\d+)/);
+            return matches ? matches[1] : '';
+        }
+    </script>
+</body>
+</html>
