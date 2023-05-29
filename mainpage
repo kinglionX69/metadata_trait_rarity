@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HTML Loader</title>
+</head>
+<body>
+    <button onclick="loadHTML('index.html')">Load File 1</button>
+    <button onclick="loadHTML('index1.html')">Load File 2</button>
+
+    <div id="content"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
