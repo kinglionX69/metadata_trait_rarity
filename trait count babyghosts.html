@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trait counter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .stats-container {
+            display: flex;
+            flex-wrap: wrap;
+            margin-top: 30px;
+            justify-content: space-between;
+        }
+
+        .stats-container .trait-table {
+            width: 30%;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        .trait-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .trait-table th,
+        .trait-table td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .trait-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        .trait-title {
+            text-align: center;
+            background-color: #f2f2f2;
+            padding: 10px;
+            font-size: 20px;
+            border-bottom: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="jsonFileInput" accept="application/json" />
+    <button onclick="generateTraitStats()">Generate Trait Statistics</button>
+
+    <div class="stats-container" id="traitStatsContainer"></div>
+
+    <script>
+        function generateTraitStats() {
+            var fileInput = document.getElementById('jsonFileInput');
+            var file = fileInput.files[0];
+
+            if (file) {
+                var reader = new FileReader();
+
+                reader.onload = function(event) {
+                    var data = JSON.parse(event.target.result);
+                    var traits = {};
+
+                    data.forEach(function (nft) {
+                        nft.attributes.forEach(function (trait) {
+                            if (!traits[trait.trait_type]) {
+                                traits[trait.trait_type] = {};
+                            }
+
+                            if (!traits[trait.trait_type][trait.value]) {
+                                traits[trait.trait_type][trait.value] = 0;
+                            }
+
+                            traits[trait.trait_type][trait.value]++;
+                        });
+                    });
+
+                    var statsContainer = document.getElementById('traitStatsContainer');
+                    statsContainer.innerHTML = '';
+
+                    Object.keys(traits).forEach(function (traitType) {
+                        var traitValues = traits[traitType];
+                        var total = Object.values(traitValues).reduce((a, b) => a + b, 0);
+
+                        var traitTableDiv = document.createElement('div');
+                        traitTableDiv.classList.add('trait-table');
+
+                        var traitTitle = document.createElement('div');
+                        traitTitle.classList.add('trait-title');
+                        traitTitle.textContent = traitType;
+
+                        traitTableDiv.appendChild(traitTitle);
+
+                        var table = document.createElement('table');
+                        var headerRow = document.createElement('tr');
+                        var header1 = document.createElement('th');
+                        header1.textContent = 'Trait Value';
+                        var header2 = document.createElement('th');
+                        header2.textContent = 'Count';
+                        var header3 = document.createElement('th');
+                        header3.textContent = 'Percentage';
+
+                        headerRow.appendChild(header1);
+                        headerRow.appendChild(header2);
+                        headerRow.appendChild(header3);
+                        table.appendChild(headerRow);
+
+                        Object.keys(traitValues).forEach(function (traitValue) {
+                            var count = traitValues[traitValue];
+                            var percentage = ((count / total) * 100).toFixed(2);
+
+                            var row = document.createElement('tr');
+                            var cell1 = document.createElement('td');
+                            cell1.textContent = traitValue;
+                            var cell2 = document.createElement('td');
+                            cell2.textContent = count;
+                            var cell3 = document.createElement('td');
+                            cell3.textContent = percentage + '%';
+
+                            row.appendChild(cell1);
+                            row.appendChild(cell2);
+                            row.appendChild(cell3);
+                            table.appendChild(row);
+                        });
+
+                        traitTableDiv.appendChild(table);
+                        statsContainer.appendChild(traitTableDiv);
+                    });
+                };
+
+                reader.readAsText(file);
+            }
+        }
+    </script>
+</body>
+</html>
